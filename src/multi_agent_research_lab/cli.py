@@ -7,11 +7,11 @@ from rich.console import Console
 from rich.panel import Panel
 
 from multi_agent_research_lab.core.config import get_settings
-from multi_agent_research_lab.core.errors import StudentTodoError
 from multi_agent_research_lab.core.schemas import ResearchQuery
 from multi_agent_research_lab.core.state import ResearchState
 from multi_agent_research_lab.graph.workflow import MultiAgentWorkflow
 from multi_agent_research_lab.observability.logging import configure_logging
+from multi_agent_research_lab.services.llm_client import LLMClient
 
 app = typer.Typer(help="Multi-Agent Research Lab starter CLI")
 console = Console()
@@ -31,9 +31,19 @@ def baseline(
     _init()
     request = ResearchQuery(query=query)
     state = ResearchState(request=request)
-    state.final_answer = (
-        "Baseline skeleton response. TODO(student): replace this with a real single-agent "
-        "implementation and record latency/cost/quality metrics."
+    response = LLMClient().complete(
+        system_prompt=(
+            "You are a single-agent research assistant. Answer the user's query directly with a concise "
+            "summary and mention that sources should be validated separately."
+        ),
+        user_prompt=request.query,
+    )
+    state.final_answer = response.content
+    state.record_usage(
+        mode="openai" if response.cost_usd else "mock",
+        input_tokens=response.input_tokens,
+        output_tokens=response.output_tokens,
+        cost_usd=response.cost_usd,
     )
     console.print(Panel.fit(state.final_answer, title="Single-Agent Baseline"))
 
@@ -47,11 +57,7 @@ def multi_agent(
     _init()
     state = ResearchState(request=ResearchQuery(query=query))
     workflow = MultiAgentWorkflow()
-    try:
-        result = workflow.run(state)
-    except StudentTodoError as exc:
-        console.print(Panel.fit(str(exc), title="Expected TODO", style="yellow"))
-        raise typer.Exit(code=2) from exc
+    result = workflow.run(state)
     console.print(result.model_dump_json(indent=2))
 
 

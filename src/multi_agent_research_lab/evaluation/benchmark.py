@@ -19,5 +19,10 @@ def run_benchmark(run_name: str, query: str, runner: Runner) -> tuple[ResearchSt
     started = perf_counter()
     state = runner(query)
     latency = perf_counter() - started
-    metrics = BenchmarkMetrics(run_name=run_name, latency_seconds=latency)
+    metrics = BenchmarkMetrics(
+        run_name=run_name,
+        latency_seconds=latency,
+        estimated_cost_usd=float(state.usage.get("estimated_cost_usd", 0.0)),
+        notes=f"mode={state.usage.get('mode', 'mock')}; routes={','.join(state.route_history) or 'baseline'}",
+    )
     return state, metrics
